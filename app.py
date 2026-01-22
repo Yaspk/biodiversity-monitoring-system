@@ -1,4 +1,15 @@
 import os
+
+
+# Force TensorFlow to use CPU only (Render has no GPU)
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+import tensorflow as tf
+
+# Limit TensorFlow thread usage to reduce memory spikes
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+
 import logging
 import random
 import base64
@@ -7,15 +18,15 @@ from io import BytesIO
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+
 from flask import Flask, request, jsonify, render_template
 from tensorflow.keras.preprocessing import image
 
 # -----------------------------
 # CONFIG
 # -----------------------------
-MODEL_PATH = "biodiversity_model.h5"
-IMAGE_SIZE = (256, 256)
+MODEL_PATH = "biodiversity_model.keras"
+IMAGE_SIZE = (128, 128)
 CLASS_NAMES = ["elephant", "lion", "panda", "zebra"]
 LOG_FILE = "biodiversity_log.csv"
 
@@ -69,6 +80,10 @@ def log_detection(species, confidence, zone):
 def index():
     return render_template("index.html")
 
+import requests
+
+HF_API_URL = "https://yash200408-biodiversity-ai.hf.space/predict"
+
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
@@ -86,18 +101,25 @@ def predict():
         if not zone_selected:
             return render_template("result.html", error="Please select a zone")
 
-        # Read image
+        # Read image bytes
         image_bytes = file.read()
 
-        # Preprocess
-        img_array = preprocess_image_from_bytes(image_bytes)
+        # Call Hugging Face AI service
+        response = requests.post(
+            HF_API_URL,
+            files={"file": ("image.jpg", image_bytes, "image/jpeg")},
+            timeout=60
+        )
 
-        # Predict
-        preds = model.predict(img_array)[0]
-        class_id = int(np.argmax(preds))
-        confidence = float(preds[class_id])
+        if response.status_code != 200:
+            return render_template(
+                "result.html",
+                error=f"AI service error: {response.text}"
+            )
 
-        species = CLASS_NAMES[class_id]
+        result = response.json()
+        species = result["species"]
+        confidence = result["confidence"]
 
         # Zone info
         zone_data = {
@@ -108,19 +130,18 @@ def predict():
                      else "red"
         }
 
-        # Environmental simulation
         env_data = get_environmental_data()
 
-        # Log
-        log_detection(species, confidence, zone_selected)
+        # Log detection
+        log_detection(species, confidence / 100.0, zone_selected)
 
-        # Image to base64
+        # Encode image for display
         encoded_img = base64.b64encode(image_bytes).decode("utf-8")
 
         return render_template(
             "result.html",
             species=species.capitalize(),
-            confidence=round(confidence * 100, 2),
+            confidence=confidence,
             zone=zone_data,
             environment=env_data,
             image_data=encoded_img,
@@ -128,8 +149,8 @@ def predict():
         )
 
     except Exception as e:
-        logging.exception("Prediction failed")
         return render_template("result.html", error=str(e))
+
 
 @app.route("/map")
 def map_dashboard():
