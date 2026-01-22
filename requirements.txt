@@ -1,7 +1,6 @@
 flask
-tensorflow
-numpy
+requests
 pandas
+numpy
 Pillow
 gunicorn
-requests

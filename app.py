@@ -1,33 +1,17 @@
 import os
-
-
-# Force TensorFlow to use CPU only (Render has no GPU)
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
-import tensorflow as tf
-
-# Limit TensorFlow thread usage to reduce memory spikes
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
-
 import logging
 import random
 import base64
 from datetime import datetime
-from io import BytesIO
 
-import numpy as np
 import pandas as pd
-
-from flask import Flask, request, jsonify, render_template
-from tensorflow.keras.preprocessing import image
+import requests
+from flask import Flask, request, render_template
 
 # -----------------------------
 # CONFIG
 # -----------------------------
-MODEL_PATH = "biodiversity_model.keras"
-IMAGE_SIZE = (128, 128)
-CLASS_NAMES = ["elephant", "lion", "panda", "zebra"]
+HF_API_URL = "https://yash200408-biodiversity-ai.hf.space/predict"
 LOG_FILE = "biodiversity_log.csv"
 
 # -----------------------------
@@ -39,8 +23,6 @@ logging.basicConfig(level=logging.INFO)
 # APP INIT
 # -----------------------------
 app = Flask(__name__)
-model = tf.keras.models.load_model(MODEL_PATH)
-logging.info("Model loaded")
 
 # -----------------------------
 # HELPERS
@@ -51,11 +33,6 @@ def get_environmental_data():
         "humidity": round(random.uniform(30, 90), 2),
         "vegetation_index": round(random.uniform(0.2, 0.9), 2)
     }
-
-def preprocess_image_from_bytes(image_bytes):
-    img = image.load_img(BytesIO(image_bytes), target_size=IMAGE_SIZE)
-    img_array = image.img_to_array(img) / 255.0
-    return np.expand_dims(img_array, axis=0)
 
 def log_detection(species, confidence, zone):
     exists = os.path.exists(LOG_FILE)
@@ -80,10 +57,6 @@ def log_detection(species, confidence, zone):
 def index():
     return render_template("index.html")
 
-import requests
-
-HF_API_URL = "https://yash200408-biodiversity-ai.hf.space/predict"
-
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
@@ -101,7 +74,7 @@ def predict():
         if not zone_selected:
             return render_template("result.html", error="Please select a zone")
 
-        # Read image bytes
+        # Read image bytes ONCE
         image_bytes = file.read()
 
         # Call Hugging Face AI service
@@ -112,14 +85,15 @@ def predict():
         )
 
         if response.status_code != 200:
+            logging.error(f"AI service error: {response.text}")
             return render_template(
                 "result.html",
-                error=f"AI service error: {response.text}"
+                error="AI service is currently unavailable. Try again."
             )
 
         result = response.json()
-        species = result["species"]
-        confidence = result["confidence"]
+        species = result.get("species", "unknown")
+        confidence = result.get("confidence", 0)
 
         # Zone info
         zone_data = {
@@ -149,8 +123,8 @@ def predict():
         )
 
     except Exception as e:
+        logging.exception("Prediction failed")
         return render_template("result.html", error=str(e))
-
 
 @app.route("/map")
 def map_dashboard():
@@ -174,4 +148,3 @@ def map_dashboard():
 # -----------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
-
