@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Biodiversity Monitoring</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="card">
+    <h1>🌍 Biodiversity Monitoring System</h1>
+    <p>Upload an image and select the zone where the animal was observed</p>
+
+    <form action="/predict" method="post" enctype="multipart/form-data">
+
+        <div class="file-input">
+            <input type="file" name="file" accept="image/*" required>
+        </div>
+
+        <div class="zones">
+            <label><input type="radio" name="zone" value="A" required> 🟢 Zone A (High)</label><br>
+            <label><input type="radio" name="zone" value="B"> 🟡 Zone B (Medium)</label><br>
+            <label><input type="radio" name="zone" value="C"> 🔴 Zone C (Low)</label>
+        </div>
+
+        <button type="submit">🔍 Analyze Image</button>
+    </form>
+
+    <br>
+    <a href="/map" class="back-btn">🗺 Open Map Dashboard</a>
+</div>
+
+</body>
+</html>

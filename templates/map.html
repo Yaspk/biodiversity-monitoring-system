@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Map Dashboard</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+.map-container {
+    position: relative;
+    display: inline-block;
+}
+.map {
+    width: 700px;
+    border-radius: 15px;
+    border: 3px solid #00c6ff;
+}
+.zone {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 40px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+.zone-a { background: green; top: 140px; left: 320px; }
+.zone-b { background: orange; top: 300px; left: 500px; }
+.zone-c { background: red; top: 460px; left: 250px; }
+
+.panel {
+    margin-top: 20px;
+    background: rgba(255,255,255,0.1);
+    padding: 15px;
+    border-radius: 10px;
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1>🗺 Biodiversity Map Dashboard</h1>
+    <p>Click a zone to view recorded animals</p>
+
+    <div class="map-container">
+        <img src="{{ url_for('static', filename='map.png') }}" class="map">
+
+        <div class="zone zone-a" onclick="showZone('A')">A</div>
+        <div class="zone zone-b" onclick="showZone('B')">B</div>
+        <div class="zone zone-c" onclick="showZone('C')">C</div>
+    </div>
+
+    <div id="panel" class="panel">
+        <p>No zone selected</p>
+    </div>
+
+    <a href="/" class="back-btn">⬅ Back to Upload</a>
+</div>
+
+<script>
+const zones = {{ zones | tojson }};
+
+function showZone(zone) {
+    let html = `<h2>Zone ${zone}</h2>`;
+
+    if (!zones[zone] || Object.keys(zones[zone]).length === 0) {
+        html += "<p>No animals recorded in this zone yet.</p>";
+    } else {
+        html += "<ul>";
+        for (const [species, count] of Object.entries(zones[zone])) {
+            html += `<li>${species}: ${count}</li>`;
+        }
+        html += "</ul>";
+
+        let score = Object.values(zones[zone]).reduce((a,b)=>a+b,0) * 10;
+        html += `<p><strong>Biodiversity Score:</strong> ${Math.min(score,100)}</p>`;
+    }
+
+    document.getElementById("panel").innerHTML = html;
+}
+</script>
+
+</body>
+</html>

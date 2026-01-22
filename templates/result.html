@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Result</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="card">
+
+{% if error %}
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <a href="/" class="back-btn">⬅ Go Back</a>
+{% else %}
+    <h1>Detection Result</h1>
+
+    <img src="data:image/png;base64,{{ image_data }}" width="300">
+
+    <h2>Species: {{ species }}</h2>
+    <h3>Confidence: {{ confidence }}%</h3>
+
+    <h3 style="color: {{ zone.color }};">
+        Zone {{ zone.zone }} — {{ zone.status }}
+    </h3>
+
+    <h3>Environmental Data</h3>
+    <p>🌡 Temperature: {{ environment.temperature }} °C</p>
+    <p>💧 Humidity: {{ environment.humidity }} %</p>
+    <p>🌿 Vegetation Index: {{ environment.vegetation_index }}</p>
+
+    <p><small>{{ timestamp }}</small></p>
+
+    <a href="/" class="back-btn">⬅ Analyze Another Image</a>
+{% endif %}
+
+</div>
+
+</body>
+</html>
